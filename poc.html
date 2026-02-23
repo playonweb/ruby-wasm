@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ruby WASM Todo</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Ruby WASM: UMD runtime + 4.0 stdlib wasm -->
+    <script src="https://cdn.jsdelivr.net/npm/@ruby/wasm-wasi@2.8.1/dist/browser.umd.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        .todo-item {
+            transition: transform 0.15s ease, opacity 0.15s ease;
+        }
+
+        .todo-item:hover {
+            transform: translateX(2px);
+        }
+
+        .pri-high {
+            border-left: 3px solid #ef4444;
+        }
+
+        .pri-med {
+            border-left: 3px solid #f59e0b;
+        }
+
+        .pri-low {
+            border-left: 3px solid #22c55e;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.04);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 1rem;
+        }
+
+        .repl-line {
+            animation: fi 0.15s ease;
+        }
+
+        @keyframes fi {
+            from {
+                opacity: 0;
+                transform: translateY(3px)
+            }
+
+            to {
+                opacity: 1;
+                transform: none
+            }
+        }
+
+        .fbtn {
+            background: rgba(255, 255, 255, 0.06);
+            color: #9ca3af;
+            border-radius: 0.5rem;
+            padding: 3px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all .15s;
+            cursor: pointer;
+            border: none;
+        }
+
+        .fbtn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            color: white;
+        }
+
+        .fbtn.on {
+            background: #4f46e5;
+            color: white;
+        }
+
+        #splash-bar {
+            transition: width 0.4s ease;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-950 text-white min-h-screen">
+
+    <!-- SPLASH -->
+    <div id="splash" class="fixed inset-0 bg-gray-950 flex flex-col items-center justify-center z-50"
+        style="transition:opacity 0.5s ease">
+        <div style="font-size:3rem;margin-bottom:1rem">💎</div>
+        <div style="font-size:1.5rem;font-weight:700;margin-bottom:0.5rem">Loading Ruby WASM</div>
+        <div id="splash-msg" class="mono" style="color:#6b7280;font-size:0.8rem;margin-bottom:1.5rem">Fetching
+            ruby+stdlib.wasm…</div>
+        <div style="width:260px;height:6px;background:#1f2937;border-radius:999px;overflow:hidden">
+            <div id="splash-bar" style="height:100%;background:#6366f1;border-radius:999px;width:5%"></div>
+        </div>
+        <div id="splash-err"
+            style="color:#f87171;font-size:0.75rem;margin-top:1rem;max-width:320px;text-align:center;display:none">
+        </div>
+    </div>
+
+    <!-- APP -->
+    <div id="app" style="display:none;max-width:1100px;margin:0 auto;padding:1.5rem">
+
+        <!-- Header -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+            <div style="display:flex;align-items:center;gap:0.75rem">
+                <span style="font-size:2rem">💎</span>
+                <div>
+                    <div style="font-size:1.4rem;font-weight:700">Ruby WASM Todo</div>
+                    <div class="mono" style="font-size:0.7rem;color:#6b7280">All logic runs in Ruby 4.0 · WASI in the
+                        browser</div>
+                </div>
+            </div>
+            <div id="badge" class="glass mono" style="padding:0.4rem 0.9rem;font-size:0.8rem;color:#a5b4fc"></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 320px;gap:1.5rem">
+
+            <!-- LEFT -->
+            <div style="display:flex;flex-direction:column;gap:1rem">
+
+                <!-- Add form -->
+                <div class="glass" style="padding:1rem">
+                    <div style="font-weight:600;color:#d1d5db;margin-bottom:0.75rem">✏️ New Task</div>
+                    <div style="display:flex;gap:0.5rem;margin-bottom:0.5rem">
+                        <input id="ni" type="text" placeholder="Task title…"
+                            onkeydown="if(event.key==='Enter')addTodo()"
+                            style="flex:1;background:#0f172a;border:1px solid #374151;border-radius:0.6rem;padding:0.45rem 0.75rem;font-size:0.85rem;color:white;outline:none" />
+                        <select id="np"
+                            style="background:#0f172a;border:1px solid #374151;border-radius:0.6rem;padding:0.45rem 0.6rem;font-size:0.82rem;color:white">
+                            <option value="high">🔴 High</option>
+                            <option value="medium" selected>🟡 Medium</option>
+                            <option value="low">🟢 Low</option>
+                        </select>
+                    </div>
+                    <div style="display:flex;gap:0.5rem">
+                        <input id="nt" type="text" placeholder="Tags (comma separated)…"
+                            style="flex:1;background:#0f172a;border:1px solid #374151;border-radius:0.6rem;padding:0.45rem 0.75rem;font-size:0.82rem;color:white;outline:none" />
+                        <input id="nd" type="date"
+                            style="background:#0f172a;border:1px solid #374151;border-radius:0.6rem;padding:0.45rem 0.6rem;font-size:0.82rem;color:white;outline:none" />
+                        <button onclick="addTodo()"
+                            style="background:#4f46e5;border:none;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.82rem;font-weight:600;color:white;cursor:pointer">
+                            + Add
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filters -->
+                <div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center">
+                    <button class="fbtn on" id="f-all" onclick="setFilter('all')">All</button>
+                    <button class="fbtn" id="f-active" onclick="setFilter('active')">Active</button>
+                    <button class="fbtn" id="f-done" onclick="setFilter('done')">Done</button>
+                    <button class="fbtn" id="f-high" onclick="setFilter('high')">🔴 High</button>
+                    <button class="fbtn" id="f-overdue" onclick="setFilter('overdue')">⚠️ Overdue</button>
+                    <input id="search" type="text" placeholder="🔍 Search…" oninput="doSearch(this.value)"
+                        style="margin-left:auto;background:#0f172a;border:1px solid #374151;border-radius:0.5rem;padding:3px 10px;font-size:12px;color:white;outline:none" />
+                </div>
+
+                <!-- List -->
+                <div id="todo-list" style="display:flex;flex-direction:column;gap:0.5rem;min-height:60px"></div>
+                <div id="empty" style="display:none;text-align:center;color:#374151;padding:3rem;font-size:0.85rem">No
+                    tasks here 🎉</div>
+            </div>
+
+            <!-- RIGHT -->
+            <div style="display:flex;flex-direction:column;gap:1rem">
+
+                <!-- Analytics -->
+                <div class="glass" style="padding:1rem">
+                    <div style="font-weight:600;color:#d1d5db;margin-bottom:0.75rem">
+                        📊 Analytics <span class="mono" style="font-size:0.65rem;color:#818cf8">(live Ruby)</span>
+                    </div>
+                    <div id="analytics"></div>
+                </div>
+
+                <!-- REPL -->
+                <div class="glass" style="padding:1rem">
+                    <div style="font-weight:600;color:#d1d5db;margin-bottom:0.25rem">🔮 Ruby REPL</div>
+                    <div class="mono" style="font-size:0.65rem;color:#6b7280;margin-bottom:0.6rem">
+                        Access <code style="color:#a5b4fc">$todos</code> (Enumerable), run any Ruby
+                    </div>
+                    <div id="repl-out" class="mono"
+                        style="background:#030712;border-radius:0.6rem;padding:0.6rem;height:160px;overflow-y:auto;font-size:0.72rem;margin-bottom:0.5rem;display:flex;flex-direction:column;gap:2px">
+                    </div>
+                    <div style="display:flex;gap:0.4rem;margin-bottom:0.5rem">
+                        <input id="repl-in" type="text" placeholder="$todos.map(&:title).sort"
+                            onkeydown="if(event.key==='Enter')replRun()" class="mono"
+                            style="flex:1;background:#0f172a;border:1px solid #374151;border-radius:0.6rem;padding:0.4rem 0.6rem;font-size:0.72rem;color:white;outline:none" />
+                        <button onclick="replRun()"
+                            style="background:#15803d;border:none;border-radius:0.6rem;padding:0.4rem 0.7rem;font-size:0.75rem;font-weight:700;color:white;cursor:pointer">▶</button>
+                    </div>
+                    <!-- Presets -->
+                    <div style="display:flex;flex-wrap:wrap;gap:3px">
+                        <button onclick="preset(this)" data-c="$todos.count" class="mono"
+                            style="font-size:10px;background:#1e293b;color:#94a3b8;border:none;border-radius:4px;padding:2px 6px;cursor:pointer">count</button>
+                        <button onclick="preset(this)" data-c="$todos.select(&:done).count" class="mono"
+                            style="font-size:10px;background:#1e293b;color:#94a3b8;border:none;border-radius:4px;padding:2px 6px;cursor:pointer">done</button>
+                        <button onclick="preset(this)" data-c="$todos.group_by(&:priority).transform_values(&:count)"
+                            class="mono"
+                            style="font-size:10px;background:#1e293b;color:#94a3b8;border:none;border-radius:4px;padding:2px 6px;cursor:pointer">by
+                            priority</button>
+                        <button onclick="preset(this)" data-c="$todos.flat_map(&:tags).tally.sort_by{|_,v|-v}.to_h"
+                            class="mono"
+                            style="font-size:10px;background:#1e293b;color:#94a3b8;border:none;border-radius:4px;padding:2px 6px;cursor:pointer">tag
+                            freq</button>
+                        <button onclick="preset(this)" data-c="$todos.sort_by(&:created_at).map(&:title)" class="mono"
+                            style="font-size:10px;background:#1e293b;color:#94a3b8;border:none;border-radius:4px;padding:2px 6px;cursor:pointer">sorted</button>
+                        <button onclick="preset(this)" data-c="require 'json'; JSON.pretty_generate($todos.map(&:to_h))"
+                            class="mono"
+                            style="font-size:10px;background:#1e293b;color:#94a3b8;border:none;border-radius:4px;padding:2px 6px;cursor:pointer">JSON
+                            export</button>
+                        <button onclick="preset(this)" data-c="$todos.min_by(&:priority_rank).title" class="mono"
+                            style="font-size:10px;background:#1e293b;color:#94a3b8;border:none;border-radius:4px;padding:2px 6px;cursor:pointer">top
+                            priority</button>
+                        <button onclick="preset(this)"
+                            data-c="$todos.each_with_object(Hash.new(0)){|t,h| t.tags.each{|g| h[g]+=1}}.max_by{|_,v|v}"
+                            class="mono"
+                            style="font-size:10px;background:#1e293b;color:#94a3b8;border:none;border-radius:4px;padding:2px 6px;cursor:pointer">hottest
+                            tag</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ── Boot ──────────────────────────────────────────────────────────────────────
+        const { DefaultRubyVM } = window["ruby-wasm-wasi"];
+        const bar = document.getElementById('splash-bar');
+        const msg = document.getElementById('splash-msg');
+
+        async function boot() {
+            try {
+                bar.style.width = '20%';
+                msg.textContent = 'Fetching ruby+stdlib.wasm (~25 MB, cached after first load)…';
+
+                // compileStreaming is fastest — no need to buffer the whole file first
+                const res = await fetch("https://cdn.jsdelivr.net/npm/@ruby/4.0-wasm-wasi@2.8.1/dist/ruby+stdlib.wasm");
+                if (!res.ok) throw new Error(`HTTP ${res.status} fetching wasm`);
+
+                bar.style.width = '60%';
+                msg.textContent = 'Compiling WebAssembly…';
+
+                const mod = await WebAssembly.compileStreaming(res);
+                bar.style.width = '80%';
+                msg.textContent = 'Booting Ruby VM…';
+
+                const { vm } = await DefaultRubyVM(mod);
+                window.rubyVM = vm;
+                bar.style.width = '100%';
+                msg.textContent = 'Ready!';
+
+                // ── Ruby engine definition ──────────────────────────────────────────────
+                vm.eval(`
+require 'json'
+require 'date'
+
+class Todo
+  attr_accessor :id, :title, :priority, :tags, :due_date, :done, :created_at, :notes
+  PRIORITIES = %w[high medium low].freeze
+
+  def initialize(id:, title:, priority: 'medium', tags: [], due_date: nil, notes: '')
+    @id         = id
+    @title      = title.to_s
+    @priority   = PRIORITIES.include?(priority) ? priority : 'medium'
+    @tags       = Array(tags).map(&:strip).reject(&:empty?)
+    @due_date   = due_date && !due_date.empty? ? Date.parse(due_date) : nil
+    @done       = false
+    @created_at = Time.now
+    @notes      = notes.to_s
+  end
+
+  def overdue?  = !@done && @due_date && @due_date < Date.today
+  def due_soon? = !@done && @due_date && @due_date >= Date.today && @due_date <= Date.today + 3
+  def priority_rank = {'high'=>0,'medium'=>1,'low'=>2}.fetch(@priority,1)
+
+  def matches?(q)
+    q = q.downcase
+    @title.downcase.include?(q) || @tags.any?{|t| t.downcase.include?(q)} || @notes.downcase.include?(q)
+  end
+
+  def to_h
+    { id: @id, title: @title, priority: @priority, tags: @tags,
+      due_date: @due_date&.to_s, done: @done,
+      created_at: @created_at.to_s, notes: @notes }
+  end
+  def to_json(*) = to_h.to_json
+end
+
+class TodoStore
+  include Enumerable
+
+  def initialize
+    @todos = []
+    @seq   = 0
+  end
+
+  def add(title:, priority: 'medium', tags: [], due_date: nil, notes: '')
+    @seq += 1
+    t = Todo.new(id: @seq, title: title, priority: priority,
+                 tags: tags, due_date: due_date, notes: notes)
+    @todos << t; t
+  end
+
+  def remove(id) = @todos.reject!{|t| t.id == id}
+  def toggle(id) = find_by_id(id)&.tap{|t| t.done = !t.done}
+  def find_by_id(id) = @todos.find{|t| t.id == id}
+  def each(&b) = @todos.each(&b)
+
+  def filter(type, query: '')
+    base = case type
+    when 'active'  then @todos.reject(&:done)
+    when 'done'    then @todos.select(&:done)
+    when 'high'    then @todos.select{|t| t.priority=='high' && !t.done}
+    when 'overdue' then @todos.select(&:overdue?)
+    else                @todos
+    end
+    query.empty? ? base : base.select{|t| t.matches?(query)}
+  end
+
+  def sorted_filtered(type, query: '')
+    filter(type, query: query)
+      .sort_by{|t| [t.done ? 1 : 0, t.priority_rank, t.title]}
+  end
+
+  def analytics
+    total    = @todos.size
+    done_c   = @todos.count(&:done)
+    pct      = total.zero? ? 0.0 : (done_c * 100.0 / total).round(1)
+    by_pri   = @todos.group_by(&:priority).transform_values(&:count)
+    overdue  = @todos.count(&:overdue?)
+    due_soon = @todos.count(&:due_soon?)
+    top_tags = @todos.flat_map(&:tags).tally.sort_by{|_,v|-v}.first(5).to_h
+    { total: total, done: done_c, active: total-done_c,
+      pct_complete: pct, by_priority: by_pri,
+      overdue: overdue, due_soon: due_soon, top_tags: top_tags }
+  end
+
+  def to_json(*) = @todos.to_json
+end
+
+$store = TodoStore.new
+$todos = $store
+
+[
+  {title:'Design Ruby WASM demo',         priority:'high',   tags:['ruby','wasm','demo'],    due_date:(Date.today-1).to_s},
+  {title:'Write blog post on WASM',        priority:'medium', tags:['writing','ruby'],        due_date:(Date.today+2).to_s},
+  {title:'Benchmark ruby.wasm vs JS',      priority:'high',   tags:['performance','wasm']},
+  {title:'Add Struct-based value objects', priority:'low',    tags:['refactor','ruby']},
+  {title:'Try Enumerable in the browser',  priority:'medium', tags:['ruby','fun'],            due_date:(Date.today+1).to_s},
+].each{|t| $store.add(**t)}
+
+$store.toggle(3)
+"Ruby #{RUBY_VERSION} ready"
+`);
+
+                // show app
+                const splash = document.getElementById('splash');
+                splash.style.opacity = '0';
+                setTimeout(() => {
+                    splash.remove();
+                    document.getElementById('app').style.display = '';
+                    renderAll();
+                }, 500);
+
+            } catch (e) {
+                console.error(e);
+                const errEl = document.getElementById('splash-err');
+                errEl.style.display = '';
+                errEl.textContent = 'Error: ' + e.message;
+                msg.textContent = 'Failed to load Ruby WASM';
+                bar.style.background = '#ef4444';
+            }
+        }
+
+        boot();
+
+        // ── Helpers ───────────────────────────────────────────────────────────────────
+        const rb = code => window.rubyVM.eval(code);
+        const rbStr = code => String(rb(code));
+        const rbJSON = code => JSON.parse(rbStr(`(${code}).to_json`));
+        const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+        // ── State ─────────────────────────────────────────────────────────────────────
+        let curFilter = 'all', curSearch = '';
+
+        // ── Render ────────────────────────────────────────────────────────────────────
+        function renderAll() { renderList(); renderAnalytics(); renderBadge(); }
+
+        function renderList() {
+            const q = curSearch.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            const items = rbJSON(`$store.sorted_filtered('${curFilter}', query: '${q}')`);
+            const list = document.getElementById('todo-list');
+            const empty = document.getElementById('empty');
+            list.innerHTML = '';
+
+            if (!items.length) { empty.style.display = ''; return; }
+            empty.style.display = 'none';
+
+            const today = new Date(new Date().toDateString());
+            items.forEach(t => {
+                const priClass = { high: 'pri-high', medium: 'pri-med', low: 'pri-low' }[t.priority] || '';
+                const dueD = t.due_date ? new Date(t.due_date + 'T00:00:00') : null;
+                const overdue = !t.done && dueD && dueD < today;
+                const soon = !t.done && dueD && !overdue && (dueD - today) < 3 * 86400000;
+                const priColor = { high: '#f87171', medium: '#fbbf24', low: '#4ade80' }[t.priority] || '#9ca3af';
+
+                const tagHtml = t.tags.map(g =>
+                    `<span style="background:#1e1b4b;color:#a5b4fc;border-radius:999px;padding:1px 7px;font-size:11px;font-weight:600">${esc(g)}</span>`
+                ).join('');
+
+                const dueHtml = dueD
+                    ? `<span style="font-size:11px;color:${overdue ? '#f87171' : soon ? '#fbbf24' : '#6b7280'}">${overdue ? '⚠️' : soon ? '⏰' : '📅'} ${t.due_date}</span>`
+                    : '';
+
+                const el = document.createElement('div');
+                el.className = `todo-item glass ${priClass}`;
+                el.style.cssText = 'padding:0.7rem;' + (t.done ? 'opacity:0.45' : '');
+                el.innerHTML = `
+      <div style="display:flex;align-items:flex-start;gap:0.6rem">
+        <button onclick="toggle(${t.id})"
+          style="flex-shrink:0;margin-top:2px;width:18px;height:18px;border-radius:50%;border:2px solid ${t.done ? '#6366f1' : '#4b5563'};background:${t.done ? '#6366f1' : 'transparent'};display:flex;align-items:center;justify-content:center;font-size:10px;color:white;cursor:pointer">
+          ${t.done ? '✓' : ''}
+        </button>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+            <span style="${t.done ? 'text-decoration:line-through;color:#6b7280' : 'color:white'};font-size:0.875rem;font-weight:500">${esc(t.title)}</span>
+            <span style="color:${priColor};font-size:11px" class="mono">${t.priority}</span>
+            ${dueHtml}
+          </div>
+          ${tagHtml ? `<div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap">${tagHtml}</div>` : ''}
+        </div>
+        <button onclick="remove(${t.id})" style="color:#374151;background:none;border:none;font-size:1.2rem;cursor:pointer;line-height:1;flex-shrink:0" onmouseover="this.style.color='#f87171'" onmouseout="this.style.color='#374151'">×</button>
+      </div>`;
+                list.appendChild(el);
+            });
+        }
+
+        function renderAnalytics() {
+            const a = rbJSON(`$store.analytics`);
+            const pct = a.pct_complete;
+            const tagRows = Object.entries(a.top_tags || {}).map(([t, c]) =>
+                `<div style="display:flex;justify-content:space-between;font-size:11px;margin-top:2px"><span style="color:#a5b4fc">#${esc(t)}</span><span>${c}</span></div>`
+            ).join('');
+
+            document.getElementById('analytics').innerHTML = `
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:#6b7280;margin-bottom:3px"><span>Progress</span><span>${pct}%</span></div>
+    <div style="background:#1f2937;border-radius:999px;height:6px;overflow:hidden;margin-bottom:0.75rem">
+      <div style="height:100%;background:linear-gradient(90deg,#6366f1,#a855f7);border-radius:999px;width:${pct}%;transition:width .5s ease"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:0.6rem">
+      ${[['total', 'white', a.total], ['done', '#4ade80', a.done], ['active', '#818cf8', a.active]].map(([l, c, v]) =>
+                `<div style="background:#0f172a;border-radius:8px;padding:6px;text-align:center">
+           <div style="font-size:1.2rem;font-weight:700;color:${c}">${v}</div>
+           <div style="font-size:10px;color:#6b7280">${l}</div>
+         </div>`).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;font-size:11px;margin-bottom:0.5rem">
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block"></span>${a.by_priority?.high || 0} high</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block"></span>${a.by_priority?.medium || 0} med</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block"></span>${a.by_priority?.low || 0} low</span>
+    </div>
+    ${a.overdue ? `<div style="color:#f87171;font-size:11px;margin-bottom:2px">⚠️ ${a.overdue} overdue</div>` : ''}
+    ${a.due_soon ? `<div style="color:#fbbf24;font-size:11px;margin-bottom:2px">⏰ ${a.due_soon} due soon</div>` : ''}
+    ${tagRows ? `<div style="border-top:1px solid #1f2937;margin-top:8px;padding-top:8px"><div style="font-size:10px;color:#6b7280;margin-bottom:4px">Top tags</div>${tagRows}</div>` : ''}
+  `;
+        }
+
+        function renderBadge() {
+            const a = rbJSON(`$store.analytics`);
+            document.getElementById('badge').textContent = `${a.done}/${a.total} done · ${a.pct_complete}%`;
+        }
+
+        // ── Actions ───────────────────────────────────────────────────────────────────
+        window.addTodo = () => {
+            const title = document.getElementById('ni').value.trim();
+            if (!title) return;
+            const pri = document.getElementById('np').value;
+            const tags = document.getElementById('nt').value;
+            const due = document.getElementById('nd').value;
+            const sT = title.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            const sG = tags.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            rb(`$store.add(title:'${sT}',priority:'${pri}',tags:'${sG}'.split(',').map(&:strip)${due ? `,due_date:'${due}'` : ''})`);
+            document.getElementById('ni').value = '';
+            document.getElementById('nt').value = '';
+            document.getElementById('nd').value = '';
+            renderAll();
+        };
+
+        window.toggle = id => { rb(`$store.toggle(${id})`); renderAll(); };
+        window.remove = id => { rb(`$store.remove(${id})`); renderAll(); };
+
+        window.setFilter = f => {
+            curFilter = f;
+            document.querySelectorAll('.fbtn').forEach(b => b.classList.remove('on'));
+            document.getElementById('f-' + f)?.classList.add('on');
+            renderList();
+        };
+
+        window.doSearch = q => { curSearch = q; renderList(); };
+
+        // ── REPL ──────────────────────────────────────────────────────────────────────
+        window.replRun = () => {
+            const inp = document.getElementById('repl-in');
+            const out = document.getElementById('repl-out');
+            const code = inp.value.trim();
+            if (!code) return;
+
+            const addLine = (text, color) => {
+                const d = document.createElement('div');
+                d.className = 'repl-line';
+                d.style.cssText = `color:${color};white-space:pre-wrap;word-break:break-all`;
+                d.textContent = text;
+                out.appendChild(d);
+                out.scrollTop = out.scrollHeight;
+            };
+
+            addLine('> ' + code, '#818cf8');
+            try {
+                addLine('=> ' + rbStr(code), '#4ade80');
+                renderAll();
+            } catch (e) {
+                addLine('!! ' + e.message, '#f87171');
+            }
+            inp.value = '';
+        };
+
+        window.preset = btn => {
+            document.getElementById('repl-in').value = btn.dataset.c;
+            document.getElementById('repl-in').focus();
+        };
+    </script>
+</body>
+
+</html>
