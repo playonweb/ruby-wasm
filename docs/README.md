@@ -12,7 +12,7 @@ To showcase that Ruby is not just for the server. With WebAssembly, Ruby becomes
 - **Ruby 4.0 WASM**: The core engine running in the browser.
 - **Vanilla JS**: Modulo-based architecture for the bridge.
 - **Vanilla CSS**: Premium dark-mode design with Glassmorphism.
-- **Docsify**: This beautiful documentation system.
+- **DocsViewer**: Our bespoke markdown presentation system.
 
 ## 📖 Contents
 - [Architecture](architecture.md) - How the modular system works.
