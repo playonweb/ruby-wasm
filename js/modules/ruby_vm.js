@@ -7,15 +7,20 @@ class RubyManager {
     }
 
     async init(onProgress) {
-        onProgress(20, 'Fetching ruby+stdlib.wasm (~25 MB)…');
-        const res = await fetch("https://cdn.jsdelivr.net/npm/@ruby/4.0-wasm-wasi@2.8.1/dist/ruby+stdlib.wasm");
+        onProgress(20, 'Fetching ruby-custom.wasm with Gems (~28 MB)…');
+        const res = await fetch("wasm-build/ruby-custom.wasm");
         if (!res.ok) throw new Error(`HTTP ${res.status} fetching wasm`);
 
         onProgress(50, 'Compiling WebAssembly…');
         const mod = await WebAssembly.compileStreaming(res);
 
         onProgress(70, 'Booting Ruby VM…');
-        const { vm } = await DefaultRubyVM(mod);
+        // Tell WASI where GEM_PATH is inside the virtual file system
+        const { vm } = await DefaultRubyVM(mod, {
+            env: {
+                "GEM_PATH": "/gems"
+            }
+        });
         this.vm = vm;
         window.rubyVM = vm; // For legacy global access if needed
 

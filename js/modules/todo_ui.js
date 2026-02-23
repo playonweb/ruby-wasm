@@ -16,7 +16,8 @@ export class TodoUI {
             taskTags: document.getElementById('nt'),
             taskDue: document.getElementById('nd'),
             taskPriority: document.getElementById('np'),
-            search: document.getElementById('search')
+            search: document.getElementById('search'),
+            fakeBtn: document.getElementById('fake-btn') // Optional if it exists
         };
     }
 
@@ -167,6 +168,11 @@ export class TodoUI {
         this.renderAll();
     }
 
+    handleFakeData() {
+        rubyManager.eval(`generate_fake_task`);
+        this.renderAll();
+    }
+
     handleAdd() {
         const title = this.elements.taskTitle.value.trim();
         if (!title) return;
@@ -193,22 +199,35 @@ export class TodoUI {
         const code = this.elements.replIn.value.trim();
         if (!code) return;
 
-        const addLine = (text, color) => {
+        const addLine = (text, isHtml = false) => {
             const d = document.createElement('div');
             d.className = 'repl-line';
-            d.style.cssText = `color:${color};white-space:pre-wrap;word-break:break-all`;
-            d.textContent = text;
+            if (isHtml) {
+                d.innerHTML = text; // Rouge HTML formatted
+            } else {
+                d.textContent = text;
+            }
             this.elements.replOut.appendChild(d);
             this.elements.replOut.scrollTop = this.elements.replOut.scrollHeight;
         };
 
-        addLine('> ' + code, '#818cf8');
+        addLine('> ' + code);
         try {
-            const result = rubyManager.evalStr(code);
-            addLine('=> ' + result, '#4ade80');
+            // First run the code to get the return value
+            rubyManager.eval(`$__last_res = begin; ${code}; end`);
+            // Format it using rouge formatting function
+            let formatted;
+            try {
+                formatted = rubyManager.evalStr(`format_repl_output($__last_res.inspect)`);
+            } catch (e) {
+                console.warn("Formatting failed:", e);
+                formatted = rubyManager.evalStr(`$__last_res.inspect`);
+            }
+            addLine(formatted, true);
             this.renderAll();
         } catch (e) {
-            addLine('!! ' + e.message, '#ef4444');
+            console.error("REPL Evaluation failed:", e);
+            addLine('!! ' + e.message);
         }
         this.elements.replIn.value = '';
     }

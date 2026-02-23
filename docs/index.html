@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Docs</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="description" content="Documentation">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+
+    <!-- Preload critical resources -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+
+    <!-- Critical inline styles FIRST to prevent FOUC -->
+    <style>
+        /* Prevent FOUC: Set background immediately */
+        html,
+        body {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        }
+
+        /* Hide app until content is injected by Docsify */
+        #app:empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #app:empty::after {
+            content: 'Loading documentation...';
+            color: #8b949e;
+            font-size: 14px;
+        }
+
+        :root {
+            /* Base Colors - Matching GitHub Dark Dimmed */
+            --base-background-color: #0d1117;
+            --base-color: #c9d1d9;
+            --base-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+
+            /* Sidebar */
+            --sidebar-background-color: #0d1117;
+            --sidebar-border-width: 0;
+            --sidebar-border-color: #30363d;
+            --sidebar-nav-link-color: #8b949e;
+            --sidebar-nav-link-color--active: #58a6ff;
+            --sidebar-nav-link-font-weight--active: bold;
+            --sidebar-width: 18rem;
+
+            /* Content */
+            --content-max-width: 60em;
+
+            /* Code Blocks */
+            --code-block-background-color: #161b22;
+            --code-inline-background-color: #161b22;
+            --code-inline-color: #e2e8f0;
+
+            /* Links */
+            --link-color: #58a6ff;
+            --link-text-decoration: none;
+            --link-text-decoration--hover: underline;
+
+            /* Header */
+            --heading-h2-border-style: none;
+
+            /* Blockquote & Callouts */
+            --blockquote-border-color: #38bdf8;
+            --blockquote-background-color: rgba(56, 189, 248, 0.1);
+            --blockquote-color: #e2e8f0;
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #30363d;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #58a6ff;
+        }
+
+        /* Mermaid Centering */
+        .mermaid {
+            display: flex;
+            justify-content: center;
+            background: #161b22;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+    </style>
+
+    <!-- External stylesheets loaded AFTER critical inline styles -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple-dark.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.css">
+</head>
+
+<body>
+    <nav style="display: flex; justify-content: space-between; align-items: center;">
+        <a href="/" style="color: #c9d1d9;">
+            <!-- <img src="" alt="Logo" style="width: 20px; height: 20px; object-fit: contain; filter: invert(1);"> -->
+            Home
+        </a>
+        <!-- <a href="#" style="color: #c9d1d9;">
+            <img src="https://www.svgrepo.com/show/354420/swagger.svg" height="20"> OpenAPI
+        </a> -->
+    </nav>
+    <div id="app"></div>
+
+    <script>
+        window.$docsify = {
+            name: 'Ruby WASM Todo Docs',
+            repo: 'https://github.com/rahuldhole/ruby-wasm-todo',
+            homepage: 'README.md',
+            loadSidebar: true,
+            subMaxLevel: 3,
+            auto2top: true,
+            basePath: '/docs/',
+
+            // Search Plugin Config
+            search: {
+                maxAge: 86400000,
+                paths: 'auto',
+                placeholder: 'Search...',
+                noData: 'No Results!',
+                depth: 6,
+                hideOtherSidebarContent: false,
+            },
+
+            // Pagination Plugin
+            pagination: {
+                previousText: 'Previous',
+                nextText: 'Next',
+                crossChapter: true,
+            },
+
+            // Copy Code Plugin
+            copyCode: {
+                buttonText: 'Copy',
+                errorText: 'Error',
+                successText: 'Copied'
+            },
+
+            // Mermaid Config
+            mermaidConfig: {
+                querySelector: ".mermaid",
+                startOnLoad: false
+            },
+
+            // Tabs
+            tabs: {
+                persist: true,
+                sync: true,
+                theme: 'classic',
+                tabComments: true,
+                tabHeadings: true
+            }
+        }
+    </script>
+
+    <!-- Docsify v4 -->
+    <script src="https://cdn.jsdelivr.net/npm/docsify@4"></script>
+
+    <!-- Plugins -->
+    <script src="https://cdn.jsdelivr.net/npm/docsify/lib/plugins/search.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify/lib/plugins/zoom-image.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify-copy-code/dist/docsify-copy-code.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify-pagination/dist/docsify-pagination.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify-tabs@1/dist/docsify-tabs.min.js"></script>
+
+    <!-- Mermaid Support -->
+    <script type="module">
+        import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+        mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+        window.mermaid = mermaid;
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify-mermaid@2/dist/docsify-mermaid.min.js"></script>
+
+    <!-- Vue Support -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,15 @@
+# Build Artifacts
+wasm-build/ruby-base.wasm
+wasm-build/vfs/
+
+# Keep the custom binary if desired, or ignore all
+# wasm-build/ruby-custom.wasm
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Ruby / Gems
+vendor/bundle/
+.bundle/
+node_modules/

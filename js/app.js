@@ -50,7 +50,10 @@ async function init() {
 function setupEventListeners() {
     // Task creation
     document.getElementById('add-btn').onclick = () => ui.handleAdd();
-    document.getElementById('ni').onkeydown = (e) => e.key === 'Enter' && ui.handleAdd();
+    document.getElementById('fake-btn').onclick = () => ui.handleFakeData();
+    document.getElementById('ni').onkeydown = (e) => {
+        if (e.key === 'Enter') ui.handleAdd();
+    };
 
     // Filters
     document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -70,7 +73,9 @@ function setupEventListeners() {
 
     // REPL
     document.getElementById('repl-run-btn').onclick = () => ui.handleRepl();
-    document.getElementById('repl-in').onkeydown = (e) => e.key === 'Enter' && ui.handleRepl();
+    document.getElementById('repl-in').onkeydown = (e) => {
+        if (e.key === 'Enter') ui.handleRepl();
+    };
 
     // REPL Presets
     document.querySelectorAll('.preset-btn').forEach(btn => {
